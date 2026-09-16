@@ -1,4 +1,4 @@
-streamlit
-pandas
-pyomo
-highspy
+streamlit==1.64.0
+pandas==3.0.5
+pyomo==6.10.0
+highspy==1.12.0
