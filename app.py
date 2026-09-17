@@ -452,6 +452,17 @@ ul[role="listbox"], ul[role="listbox"] li, [role="option"] {
 [data-testid="stSidebar"] * {color:#eef5ff;}
 [data-testid="stSidebar"] .stRadio label {font-size:.88rem;}
 [data-testid="stSidebar"] hr {border-color:rgba(255,255,255,.16);}
+
+/* ===== CAPA VISUAL V2 ===== */
+.hero-v2{background:linear-gradient(135deg,#061d38 0%,#0a3763 58%,#11558d 100%);border-radius:20px;padding:22px 24px;margin:4px 0 16px;box-shadow:0 12px 30px rgba(8,38,74,.18);color:white!important}
+.hero-v2 *{color:white!important}.hero-v2 .eyebrow{font-size:.72rem;letter-spacing:.11em;text-transform:uppercase;opacity:.72;font-weight:800}.hero-v2 .title{font-size:1.75rem;font-weight:850;margin-top:4px}.hero-v2 .sub{font-size:.88rem;opacity:.84;margin-top:4px;max-width:900px}
+.section-v2{font-size:1.08rem;font-weight:850;margin:18px 0 8px;color:#0b2948!important}
+.flow-v2{display:grid;grid-template-columns:repeat(9,auto);align-items:center;justify-content:center;gap:9px;background:white;border:1px solid #dbe4ef;border-radius:16px;padding:14px;box-shadow:0 3px 12px rgba(30,60,90,.05);margin:8px 0 16px}
+.flow-node{padding:10px 12px;border-radius:12px;background:#f6f9fc;border:1px solid #e0e8f1;font-size:.82rem;font-weight:800;text-align:center;min-width:105px;color:#17324d!important}.flow-arrow{font-size:1.15rem;color:#5f7891!important;font-weight:800}
+.decision-v2{background:#fff;border:1px solid #d9e4ef;border-left:5px solid #1769aa;border-radius:14px;padding:14px 16px;margin:10px 0 14px;box-shadow:0 3px 12px rgba(30,60,90,.05);color:#172033!important}.decision-v2 *{color:#172033!important}
+.tag-v2{display:inline-block;background:#edf5ff;border:1px solid #d5e7fa;color:#14528a!important;border-radius:999px;padding:4px 9px;margin:3px 4px 3px 0;font-size:.72rem;font-weight:800}
+[data-testid="stMetric"]{background:#fff;border:1px solid #e0e7ef;border-radius:14px;padding:10px 12px;box-shadow:0 2px 8px rgba(30,60,90,.035)}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -488,7 +499,7 @@ with st.sidebar:
     st.caption("Modelo didáctico · A1–A4 · SCIS · LEAN")
 
 # ---------- Header / controls ----------
-st.markdown('<div class="lab-header"><div class="lab-title">Supply Chain Digital Twin Learning Lab</div><div class="lab-subtitle">Aprende, experimenta y decide con un Digital Twin Adaptativo</div></div>', unsafe_allow_html=True)
+st.markdown('<div class="hero-v2"><div class="eyebrow">DIGITAL TWIN · CADENA DE SUMINISTRO LÁCTEA</div><div class="title">Centro de Control y Aprendizaje Adaptativo</div><div class="sub">Observa la operación, anticipa disrupciones, evalúa escenarios, optimiza decisiones URSP–SCIS y analiza su efecto sobre el desperdicio LEAN.</div></div>', unsafe_allow_html=True)
 
 hc1, hc2, hc3, hc4 = st.columns([1.35, .55, 1.1, .85])
 with hc1:
@@ -532,6 +543,7 @@ if ejecutar:
 
 # ---------- Flow ----------
 st.markdown('<div class="top-strip"><div class="step-row"><div class="step">1<br>Observar</div><div class="step">2<br>Predecir</div><div class="step">3<br>Recordar</div><div class="step">4<br>Imaginar futuros</div><div class="step">5<br>Decidir</div><div class="step">6<br>Aprender</div></div></div>', unsafe_allow_html=True)
+st.markdown('<div class="flow-v2"><div class="flow-node">🐄 Hatos</div><div class="flow-arrow">→</div><div class="flow-node">🏭 Plantas</div><div class="flow-arrow">→</div><div class="flow-node">🚚 Transporte</div><div class="flow-arrow">→</div><div class="flow-node">📦 Centros CD</div><div class="flow-arrow">→</div><div class="flow-node">🛒 Mercado</div></div>', unsafe_allow_html=True)
 
 package = st.session_state.last_package
 
@@ -845,7 +857,7 @@ if page == "Diseño y optimización":
 
     result = st.session_state.get("optimizer_result")
     if result:
-        st.markdown("#### 5. Resultados y efectos")
+        st.markdown("#### 5. Resultados, decisión e impacto")
 
         # Estado de terminación del solver HiGHS.
         solver_status = str(result.get("termination", result.get("solver_status", "No disponible")))
@@ -930,6 +942,19 @@ if page == "Diseño y optimización":
         k4.metric("Viabilidad", f"{result['expected_viability']:.1%}")
         k5.metric("Faltante esperado", f"{result['expected_shortage']:,.0f}")
         st.write(f"**Diseño seleccionado:** {result['plants_active']} plantas activas y {result['cds_active']} CD activos.")
+        scenario_items = list(result.get("scenario", {}).items())
+        if scenario_items:
+            critical_name, critical_data = min(scenario_items, key=lambda item: float(item[1].get("service_level", 1.0)))
+            critical_service = float(critical_data.get("service_level", 0.0))
+            critical_shortage = float(critical_data.get("shortage", 0.0))
+        else:
+            critical_name, critical_service, critical_shortage = "No disponible", 0.0, 0.0
+        viability_ok = float(result.get("expected_viability", 0.0)) >= float(od.theta)
+        status_text = "Viabilidad dentro del umbral" if viability_ok else "Viabilidad por debajo del umbral"
+        status_icon = "🟢" if viability_ok else "🟠"
+        st.markdown('<div class="section-v2">🧠 ¿Qué decidió y qué encontró el Digital Twin?</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="decision-v2"><b>{status_icon} Lectura ejecutiva de la optimización</b><br>El modelo seleccionó <b>{result.get("plants_active",0)} plantas</b> y <b>{result.get("cds_active",0)} centros de distribución</b>. La viabilidad esperada es <b>{float(result.get("expected_viability",0)):.1%}</b> y el faltante esperado es <b>{float(result.get("expected_shortage",0)):,.0f}</b>.<br><br><span class="tag-v2">{status_text}</span><span class="tag-v2">Escenario crítico: {critical_name}</span><span class="tag-v2">Servicio crítico: {critical_service:.1%}</span><span class="tag-v2">Faltante crítico: {critical_shortage:,.0f}</span></div>', unsafe_allow_html=True)
+
 
         # Verificación visible de que la fijación solicitada llegó a la solución.
         # v8 — Diagnóstico SCIS proveniente del optimizador v31.
