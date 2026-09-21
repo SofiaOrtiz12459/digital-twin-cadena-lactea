@@ -1336,21 +1336,48 @@ def solve_model(
         opt.options["log_to_console"] = False
         opt.options["output_flag"] = False
 
-    # Streamlit reemplaza sys.stdout/sys.stderr durante los reruns.
-    # Pyomo >= 6.10 permite desactivar temporalmente su captura interna de
-    # consola; esto evita el error _SignalFlush sin alterar el MILP ni HiGHS.
-    _tee_module = None
-    _old_capture_mode = None
+    # Compatibilidad Streamlit + Pyomo (incluye versiones anteriores a 6.10).
+    # Algunas versiones de Pyomo capturan globalmente sys.stdout/sys.stderr durante
+    # HiGHS. Streamlit puede sustituir esos streams durante un rerun y Pyomo falla
+    # al restaurarlos (_SignalFlush). Evitamos SOLO esa captura temporal; el MILP,
+    # sus opciones y la solución no cambian.
+    import contextlib
+
+    class _NoCapture:
+        def __init__(self, output=None, capture_fd=False, *args, **kwargs):
+            self.output = output
+        def __enter__(self):
+            return self.output
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    _patched_capture = []
     try:
-        import pyomo.common.tee as _tee_module
-        from pyomo.common.enums import CaptureOutputMode
-        if hasattr(_tee_module, "OVERRIDE_CAPTURE_OUTPUT"):
-            _old_capture_mode = _tee_module.OVERRIDE_CAPTURE_OUTPUT
-            _tee_module.OVERRIDE_CAPTURE_OUTPUT = CaptureOutputMode.DISABLE
+        import pyomo.common.tee as _pct
+        if hasattr(_pct, "capture_output"):
+            _patched_capture.append((_pct, "capture_output", _pct.capture_output))
+            _pct.capture_output = _NoCapture
+
+        # SolverFactory('highs') puede resolver mediante cualquiera de estas
+        # interfaces según la versión de Pyomo instalada. Ambas importan
+        # capture_output como símbolo local, por lo que se parchean si existen.
+        for _modname in (
+            "pyomo.contrib.solver.solvers.highs",
+            "pyomo.contrib.appsi.solvers.highs",
+        ):
+            try:
+                import importlib
+                _mod = importlib.import_module(_modname)
+                if hasattr(_mod, "capture_output"):
+                    _patched_capture.append((_mod, "capture_output", _mod.capture_output))
+                    _mod.capture_output = _NoCapture
+            except (ImportError, ModuleNotFoundError):
+                pass
+
         result = opt.solve(model, tee=False, load_solutions=True)
     finally:
-        if _tee_module is not None and _old_capture_mode is not None:
-            _tee_module.OVERRIDE_CAPTURE_OUTPUT = _old_capture_mode
+        for _obj, _name, _old in reversed(_patched_capture):
+            setattr(_obj, _name, _old)
     term = str(result.solver.termination_condition)
     term_l = term.lower().replace(" ", "")
 
